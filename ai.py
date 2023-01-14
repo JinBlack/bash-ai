@@ -17,6 +17,9 @@ def get_api_key():
         if openai.api_key == "":
             print("No api key provided. Exiting.")
             sys.exit(1)
+        # make sure the directory exists
+        if not os.path.exists(os.path.expanduser("~/.config")):
+            os.mkdir(os.path.expanduser("~/.config"))
         with open(os.path.expanduser("~/.config/openai"), "w") as f:
             f.write(openai.api_key)
 
