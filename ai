@@ -1,0 +1,17 @@
+#!/bin/bash
+
+ENV_NAME=bashai
+ENV_PATH=~/.virtualenv/$ENV_NAME
+COMMAND_PATH=$(cd $(dirname $0); pwd)/ai.py
+REQ_PATH=$(cd $(dirname $0); pwd)/requirements.txt
+
+if [ ! -d "$ENV_PATH" ]; then
+    echo "Creating virtual environment..."
+    virtualenv $ENV_PATH
+    source $ENV_PATH/bin/activate
+    pip install -r $REQ_PATH
+else
+    source $ENV_PATH/bin/activate
+fi
+
+python $COMMAND_PATH $@
