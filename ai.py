@@ -38,7 +38,7 @@ if __name__ == "__main__":
    
     response = openai.Completion.create(
         engine="text-davinci-003",
-        prompt="Running on Linux like %s. signle bash command to %s" % (distribution, prompt),
+        prompt="Running on Linux like %s. signle bash command to %s\n" % (distribution, prompt),
         temperature=0,
         max_tokens=50,
         top_p=1,
