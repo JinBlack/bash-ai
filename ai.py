@@ -4,6 +4,7 @@
 import sys
 import os
 import openai
+import distro
 
 def get_api_key():
     # load the api key from .config/openai
@@ -31,10 +32,13 @@ if __name__ == "__main__":
         print("Please provide a command to execute.")
         sys.exit(1)
     prompt = " ".join(sys.argv[1:])
+
+    # TODO add info about the system to the prompt. E.g. ubuntu, arch, etc.
+    distribution = distro.like()
    
     response = openai.Completion.create(
         engine="text-davinci-003",
-        prompt="signle bash command to %s" % prompt,
+        prompt="Running on Linux like %s. signle bash command to %s" % (distribution, prompt),
         temperature=0,
         max_tokens=50,
         top_p=1,
