@@ -6,6 +6,7 @@ import os
 import openai
 import distro
 import pickle
+import signal
 
 
 def cache(maxsize=128):
@@ -75,13 +76,27 @@ def get_cmd(prompt):
     cmd = cmd.strip()
     return cmd
 
+# Control-C to exit
+def signal_handler(sig, frame):
+    print("\nExiting.")
+    sys.exit(0)
+
+
 if __name__ == "__main__":
-    get_api_key()
     # get the command from the user
     if len(sys.argv) < 2:
         print("Please provide a command to execute.")
         sys.exit(1)
+    # setup control-c handler
+    signal.signal(signal.SIGINT, signal_handler)
+
+    # get the api key
+    get_api_key()
+
+    # get the prompt
     prompt = " ".join(sys.argv[1:])
+
+    # get the command from the ai
     cmd = get_cmd(prompt)
 
     # print the command colorized
