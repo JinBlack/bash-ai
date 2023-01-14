@@ -1,9 +1,40 @@
 #!/bin/bash
 
 ENV_NAME=bashai
-ENV_PATH=~/.virtualenv/$ENV_NAME
+ENV_PATH=~/.virtualenvs/$ENV_NAME
 COMMAND_PATH=$(cd $(dirname $0); pwd)/ai.py
 REQ_PATH=$(cd $(dirname $0); pwd)/requirements.txt
+
+
+function check_python() {
+    # Check if python3 exists
+    if [ ! -f "/usr/bin/python3" ]; then
+        echo "You need to install python3"
+        exit 1
+    fi
+
+    # check python version is 3.6 or higher
+    PYTHON_VERSION=$(python3 -V 2>&1 | awk '{print $2}')
+    MIN_VERSION="3.6"
+    if [[ "$(printf '%s\n' "$PYTHON_VERSION" "$MIN_VERSION" | sort -V | head -n1)" != "$MIN_VERSION" ]]; then
+        echo "You need to install python $MIN_VERSION or higher (current version: $PYTHON_VERSION)"
+        exit 1
+    fi
+}
+
+
+function check_virtualenv() {
+    # Check if virtualenv exists
+    if [ ! -f "/usr/bin/virtualenv" ]; then
+        echo "You need to install virtualenv"
+        exit 1
+        # echo "Installing virtualenv..."
+        # sudo pip install virtualenv
+    fi
+}
+
+check_python
+check_virtualenv
 
 if [ ! -d "$ENV_PATH" ]; then
     echo "Creating virtual environment..."
