@@ -22,14 +22,31 @@ function check_python() {
     fi
 }
 
+function check_pip() {
+    # Check if pip exists
+    if [ ! -f "/usr/bin/pip" ]; then
+     # check if debian based
+        if [ ! -f "/etc/debian_version" ]; then
+            echo "You need to install pip"
+            exit 1
+        else
+            echo "Installing pip..."
+            sudo apt-get install python3-pip
+        fi
+    fi
+}
 
 function check_virtualenv() {
     # Check if virtualenv exists
     if [ ! -f "/usr/bin/virtualenv" ]; then
-        echo "You need to install virtualenv"
-        exit 1
-        # echo "Installing virtualenv..."
-        # sudo pip install virtualenv
+        # check if debian based
+        if [ ! -f "/etc/debian_version" ]; then
+            echo "You need to install virtualenv"
+            exit 1
+        else
+            echo "Installing virtualenv..."
+            sudo apt-get install python3-virtualenv
+        fi
     fi
 }
 
