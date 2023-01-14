@@ -5,6 +5,40 @@ import sys
 import os
 import openai
 import distro
+import pickle
+
+
+def cache(maxsize=128):
+    def decorator(func):
+        def wrapper(*args, **kwargs):
+            # Bypass the cache if env var is set
+            if os.environ.get("NOCACHE"):
+                return func(*args, **kwargs)
+            key = str(args) + str(kwargs)
+
+            # create the cache directory if it doesn't exist
+            if not os.path.exists(os.path.expanduser("~/.cache/bashai")):
+                os.mkdir(os.path.expanduser("~/.cache/bashai"))
+
+            # load the cache
+            try:
+                with open(os.path.expanduser("~/.cache/bashai/cache.pkl"), "rb") as f:
+                    cache = pickle.load(f)
+            except (FileNotFoundError, EOFError):
+                cache = {}
+            
+            if key in cache:
+                return cache[key]
+            else:
+                result = func(*args, **kwargs)
+                if len(cache) >= maxsize:
+                    cache.popitem()
+                cache[key] = result
+                with open(os.path.expanduser("~/.cache/bashai/cache.pkl"), "wb") as f:
+                    pickle.dump(cache, f)
+                return result
+        return wrapper
+    return decorator
 
 def get_api_key():
     # load the api key from .config/openai
@@ -24,16 +58,9 @@ def get_api_key():
         with open(os.path.expanduser("~/.config/openai"), "w") as f:
             f.write(openai.api_key)
 
-
-if __name__ == "__main__":
-    get_api_key()
-    # get the command from the user
-    if len(sys.argv) < 2:
-        print("Please provide a command to execute.")
-        sys.exit(1)
-    prompt = " ".join(sys.argv[1:])
-
-    # TODO add info about the system to the prompt. E.g. ubuntu, arch, etc.
+@cache()
+def get_cmd(prompt):
+    # add info about the system to the prompt. E.g. ubuntu, arch, etc.
     distribution = distro.like()
    
     response = openai.Completion.create(
@@ -46,6 +73,17 @@ if __name__ == "__main__":
     cmd = response.get("choices")[0].get("text", "echo 'No command found.'")
     # trim the cmd
     cmd = cmd.strip()
+    return cmd
+
+if __name__ == "__main__":
+    get_api_key()
+    # get the command from the user
+    if len(sys.argv) < 2:
+        print("Please provide a command to execute.")
+        sys.exit(1)
+    prompt = " ".join(sys.argv[1:])
+    cmd = get_cmd(prompt)
+
     # print the command colorized
     print("AI want to execute \n\033[1;32m%s\033[0m\n" % cmd)
     # validate the command
