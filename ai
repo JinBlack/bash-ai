@@ -15,7 +15,7 @@ function check_python() {
 
     # check python version is 3.6 or higher
     PYTHON_VERSION=$(python3 -V 2>&1 | awk '{print $2}')
-    MIN_VERSION="3.6"
+    MIN_VERSION="3.7.1"
     if [[ "$(printf '%s\n' "$PYTHON_VERSION" "$MIN_VERSION" | sort -V | head -n1)" != "$MIN_VERSION" ]]; then
         echo "You need to install python $MIN_VERSION or higher (current version: $PYTHON_VERSION)"
         exit 1
