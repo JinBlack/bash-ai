@@ -7,7 +7,7 @@ REQ_PATH=$(cd $(dirname $0); pwd)/requirements.txt
 
 if [ ! -d "$ENV_PATH" ]; then
     echo "Creating virtual environment..."
-    virtualenv $ENV_PATH -m python3
+    virtualenv --python=python3 $ENV_PATH
     source $ENV_PATH/bin/activate
     pip install -r $REQ_PATH
 else
