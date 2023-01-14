@@ -2,7 +2,7 @@
 
 ## Install
 ``` 
- git clone
+ git clone https://github.com/JinBlack/bash-ai
  cd bash-ai
  chmod +x install.sh
  ./install.sh
