@@ -114,7 +114,7 @@ if __name__ == "__main__":
         if shell is None:
             shell = "/bin/bash"
         # build the command
-        cmd = "%s -c '%s'; history -w" % (shell, cmd)
+        # cmd = "%s -c '%s'; history -w" % (shell, cmd)
         subprocess.call(cmd, shell=True)
         # os.system(cmd)
         
