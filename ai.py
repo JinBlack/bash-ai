@@ -7,6 +7,9 @@ import openai
 import distro
 import pickle
 import signal
+import subprocess
+import shlex
+
 
 
 def cache(maxsize=128):
@@ -66,7 +69,7 @@ def get_cmd(prompt):
    
     response = openai.Completion.create(
         engine="text-davinci-003",
-        prompt="Running on Linux like %s. signle bash command to %s\n" % (distribution, prompt),
+        prompt="Running on Linux like %s. Single bash command to %s\n" % (distribution, prompt),
         temperature=0,
         max_tokens=50,
         top_p=1,
@@ -100,7 +103,19 @@ if __name__ == "__main__":
     cmd = get_cmd(prompt)
 
     # print the command colorized
-    print("AI want to execute \n\033[1;32m%s\033[0m\n" % cmd)
+    print("AI wants to execute \n\033[1;32m%s\033[0m\n" % cmd)
     # validate the command
     if not input("Do you want to execute this command? [Y/n] ").lower() == "n":
-        os.system(cmd)
+        # execute the command with Popen and save it to the history
+
+        # retrieve the shell
+        shell = os.environ.get("SHELL")
+        # if no shell is set, use bash
+        if shell is None:
+            shell = "/bin/bash"
+        # build the command
+        cmd = "%s -c '%s'; history -w" % (shell, cmd)
+        subprocess.call(cmd, shell=True)
+        # os.system(cmd)
+        
+
