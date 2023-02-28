@@ -8,8 +8,7 @@ import distro
 import pickle
 import signal
 import subprocess
-import shlex
-
+import argparse
 
 
 def cache(maxsize=128):
@@ -63,13 +62,21 @@ def get_api_key():
             f.write(openai.api_key)
 
 @cache()
-def get_cmd(prompt):
+def get_cmd(prompt, context_files=[]):
     # add info about the system to the prompt. E.g. ubuntu, arch, etc.
     distribution = distro.like()
-   
+    context_prompt = ""
+    # add the current folder to the prompt
+    if len(context_files) > 0:
+        context_prompt = "The command is executed in folder %s contining the following list of files:\n" % (os.getcwd())
+        # add the files to the prompt
+        context_prompt += "\n".join(context_files)
+            
+
+
     response = openai.Completion.create(
         engine="text-davinci-003",
-        prompt="Running on Linux like %s. Single bash command to %s\n" % (distribution, prompt),
+        prompt="Running on Linux like %s. %s\nSingle bash command to %s\n" % (distribution, context_prompt, prompt),
         temperature=0,
         max_tokens=50,
         top_p=1,
@@ -90,17 +97,30 @@ if __name__ == "__main__":
     if len(sys.argv) < 2:
         print("Please provide a command to execute.")
         sys.exit(1)
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-c', action='store_true', help='include folder content as context to the request.')
+    parser.add_argument('text', nargs='+', help='your query to the ai')
+
+    args = parser.parse_args()
+    context = args.c
+    context_files = []
+    if context:
+        context_files = os.listdir(os.getcwd())
+
+    prompt = " ".join(args.text)
+
     # setup control-c handler
     signal.signal(signal.SIGINT, signal_handler)
 
     # get the api key
     get_api_key()
 
-    # get the prompt
-    prompt = " ".join(sys.argv[1:])
+    # # get the prompt
+    # prompt = " ".join(sys.argv[1:])
 
     # get the command from the ai
-    cmd = get_cmd(prompt)
+    cmd = get_cmd(prompt, context_files=context_files)
 
     # print the command colorized
     print("AI wants to execute \n\033[1;32m%s\033[0m\n" % cmd)
