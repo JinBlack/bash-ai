@@ -13,9 +13,10 @@
 
 ### Context
 `ai` is aware of the distro used. It will use the correct package manager to install dependencies.
+
 `-c` option will add the content of the current directory to the context. This will generate a better result. But it will significantly increase the number of tokens used.
 
-![Context Demo gif](https://i.postimg.cc/gjfFWs3K/context.gif)
+![Context Demo gif](https://i.postimg.cc/xjd0LFCB/context.gif)
 
 
 ### NB
