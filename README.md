@@ -6,6 +6,11 @@
     chmod +x install.sh
     ./install.sh
 
+First time you run ai, it will install dependencies in a virtual environment and it will ask for the key to the api. 
+
+You can get the key from [here](https://beta.openai.com/account/api-keys)
+
+
 ## Usage
 `ai <what you want to do>`
 
@@ -16,8 +21,5 @@
 
 `-c` option will add the content of the current directory to the context. This will generate a better result. But it will significantly increase the number of tokens used.
 
-![Context Demo gif](https://i.postimg.cc/xjd0LFCB/context.gif)
+![Context Demo gif](https://i.postimg.cc/gjfFWs3K/context.gif)
 
-
-### NB
-First time you run ai, it will install dependencies in a virtual environment and it will ask for the key to the api. You can get the key from [here](https://beta.openai.com/account/api-keys)
