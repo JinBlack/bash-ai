@@ -9,6 +9,7 @@ import pickle
 import signal
 import subprocess
 import argparse
+import re
 
 
 def cache(maxsize=128):
@@ -86,6 +87,29 @@ def get_cmd(prompt, context_files=[]):
     cmd = cmd.strip()
     return cmd
 
+@cache()
+def get_explaination(cmd):
+    response = openai.Completion.create(
+        engine="text-davinci-003",
+        prompt="Explain what is the purpose of command with details for each option: %s \n" % cmd,
+        temperature=0,
+        max_tokens=250,
+        top_p=1,
+    )
+    return response.get("choices")[0].get("text", "No explaination found.")
+
+
+def highlight(cmd, explanation):
+    for x in set(cmd.split(" ")):
+        x_strip = x.strip()
+        x_replace = "\033[1;33m%s\033[0m" % x_strip
+
+        #escape the special characters
+        x_strip = re.escape(x_strip)
+
+        explanation = re.sub("([\s'\"`\.,;:])%s([\s'\"`\.,;:])" % x_strip, "\\1%s\\2" % x_replace, explanation)
+    return explanation
+
 # Control-C to exit
 def signal_handler(sig, frame):
     print("\nExiting.")
@@ -100,6 +124,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument('-c', action='store_true', help='include folder content as context to the request.')
+    parser.add_argument('-e', action='store_true', help='explain the generated command.')
     parser.add_argument('text', nargs='+', help='your query to the ai')
 
     args = parser.parse_args()
@@ -122,8 +147,20 @@ if __name__ == "__main__":
     # get the command from the ai
     cmd = get_cmd(prompt, context_files=context_files)
 
+
+    if args.e:
+        explaination = get_explaination(cmd)
+        h_explaination = highlight(cmd, explaination.strip())
+        print("\n --- \033[1;31m Explaination: \033[0m --- ")
+        print(h_explaination)
+        print("")
+
+
     # print the command colorized
     print("AI wants to execute \n\033[1;32m%s\033[0m\n" % cmd)
+
+
+
     # validate the command
     if not input("Do you want to execute this command? [Y/n] ").lower() == "n":
         # execute the command with Popen and save it to the history

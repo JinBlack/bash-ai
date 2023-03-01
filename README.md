@@ -21,5 +21,8 @@ You can get the key from [here](https://beta.openai.com/account/api-keys)
 
 `-c` option will add the content of the current directory to the context. This will generate a better result. But it will significantly increase the number of tokens used.
 
+`-e` option will generate an explanation of the command. This will significantly increase the number of tokens used.
+
+
 ![Context Demo gif](https://i.postimg.cc/gjfFWs3K/context.gif)
 
