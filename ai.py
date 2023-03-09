@@ -10,6 +10,7 @@ import signal
 import subprocess
 import argparse
 import re
+from collections import OrderedDict
 
 
 
@@ -30,7 +31,10 @@ def cache(maxsize=128):
                 with open(os.path.expanduser("~/.cache/bashai/cache.pkl"), "rb") as f:
                     cache = pickle.load(f)
             except (FileNotFoundError, EOFError):
-                cache = {}
+                cache = OrderedDict()
+
+            if type(cache) != OrderedDict:
+                cache = OrderedDict()
 
             if key in cache:
                 return cache[key]
