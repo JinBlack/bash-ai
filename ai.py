@@ -12,6 +12,7 @@ import argparse
 import re
 
 
+
 def cache(maxsize=128):
     def decorator(func):
         def wrapper(*args, **kwargs):
@@ -30,13 +31,15 @@ def cache(maxsize=128):
                     cache = pickle.load(f)
             except (FileNotFoundError, EOFError):
                 cache = {}
-            
+
             if key in cache:
                 return cache[key]
             else:
                 result = func(*args, **kwargs)
                 if len(cache) >= maxsize:
-                    cache.popitem()
+                    # remove the oldest entry
+                    cache.popitem(last=False)
+
                 cache[key] = result
                 with open(os.path.expanduser("~/.cache/bashai/cache.pkl"), "wb") as f:
                     pickle.dump(cache, f)
@@ -63,16 +66,21 @@ def get_api_key():
             f.write(openai.api_key)
 
 @cache()
-def get_cmd(prompt, context_files=[]):
-    # add info about the system to the prompt. E.g. ubuntu, arch, etc.
-    distribution = distro.like()
+def get_context_files(context_files=[]):
     context_prompt = ""
     # add the current folder to the prompt
     if len(context_files) > 0:
         context_prompt = "The command is executed in folder %s contining the following list of files:\n" % (os.getcwd())
         # add the files to the prompt
         context_prompt += "\n".join(context_files)
-            
+    return context_prompt
+
+
+@cache()
+def get_cmd(prompt, context_files=[]):
+    # add info about the system to the prompt. E.g. ubuntu, arch, etc.
+    distribution = distro.like()
+    context_prompt = get_context_files(context_files)            
 
 
     response = openai.Completion.create(
@@ -87,6 +95,28 @@ def get_cmd(prompt, context_files=[]):
     cmd = cmd.strip()
     return cmd
 
+
+@cache()
+def get_cmd_list(prompt, context_files=[], n=5):
+    # add info about the system to the prompt. E.g. ubuntu, arch, etc.
+    distribution = distro.like()
+    context_prompt = get_context_files(context_files)                        
+
+
+    response = openai.Completion.create(
+        engine="text-davinci-003",
+        prompt="Running on Linux like %s. %s\n Generate a single bash command to %s\n" % (distribution, context_prompt, prompt),
+        temperature=0.9,
+        max_tokens=50,
+        top_p=1,
+        n=n,
+    )
+    cmd_list = [x.get("text", "echo 'No command found.'") for x in response.get("choices")]
+    # trim the cmd
+    cmd_list = list(set([x.strip() for x in cmd_list]))
+    return cmd_list
+
+
 @cache()
 def get_explaination(cmd):
     response = openai.Completion.create(
@@ -96,7 +126,9 @@ def get_explaination(cmd):
         max_tokens=250,
         top_p=1,
     )
-    return response.get("choices")[0].get("text", "No explaination found.")
+    explanation = response.get("choices")[0].get("text", "No explanation found.")
+    explanation = explanation.replace("\n\n", "\n")
+    return explanation
 
 
 def highlight(cmd, explanation):
@@ -109,6 +141,32 @@ def highlight(cmd, explanation):
 
         explanation = re.sub("([\s'\"`\.,;:])%s([\s'\"`\.,;:])" % x_strip, "\\1%s\\2" % x_replace, explanation)
     return explanation
+
+
+def square_text(text):
+    #retrieve the terminal size using library
+    columns, lines = os.get_terminal_size(0)
+
+    # set mono spaced font
+    out = "\033[10m"        
+
+    out = "-" * int(columns)
+    for line in text.split("\n"):
+        for i in range(0, len(line), int(columns)-4):
+            out += "\n| %s |" % line[i:i+int(columns)-4].ljust(int(columns)-4)
+    out += "\n" + "-" * int(columns)
+    return out
+
+    
+def print_explaination(cmd):    
+    explaination = get_explaination(cmd)
+    h_explaination = highlight(cmd, square_text(explaination.strip()))
+    print("-" * 27)
+    print("| *** \033[1;31m Explaination: \033[0m *** |")
+    print(h_explaination)
+    print("")
+
+
 
 # Control-C to exit
 def signal_handler(sig, frame):
@@ -125,6 +183,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('-c', action='store_true', help='include folder content as context to the request.')
     parser.add_argument('-e', action='store_true', help='explain the generated command.')
+    parser.add_argument('-n', action='store', type=int, default=5, help='number of commands to generate.')
     parser.add_argument('text', nargs='+', help='your query to the ai')
 
     args = parser.parse_args()
@@ -149,30 +208,62 @@ if __name__ == "__main__":
 
 
     if args.e:
-        explaination = get_explaination(cmd)
-        h_explaination = highlight(cmd, explaination.strip())
-        print("\n --- \033[1;31m Explaination: \033[0m --- ")
-        print(h_explaination)
-        print("")
-
+        print_explaination(cmd)
 
     # print the command colorized
     print("AI wants to execute \n\033[1;32m%s\033[0m\n" % cmd)
 
 
-
     # validate the command
-    if not input("Do you want to execute this command? [Y/n] ").lower() == "n":
+    if input("Do you want to execute this command? [Y/n] ").lower() == "n":
         # execute the command with Popen and save it to the history
+        cmds = get_cmd_list(prompt, context_files=context_files, n=args.n)
+        print("Here are some other commands you might want to execute:")
+        index = 0
+        for cmd in cmds:
+            print("%d. \033[1;32m%s\033[0m" % (index, cmd))
+            if args.e:
+                print_explaination(cmd)
+                print("\n")
 
-        # retrieve the shell
-        shell = os.environ.get("SHELL")
-        # if no shell is set, use bash
-        if shell is None:
-            shell = "/bin/bash"
-        # build the command
-        # cmd = "%s -c '%s'; history -w" % (shell, cmd)
-        subprocess.call(cmd, shell=True)
-        # os.system(cmd)
+            index += 1
+
+        choice = input("Do you want to execute one of these commands? [0-%d] " % (index-1))
+        if choice.isdigit() and int(choice) < index:
+            cmd = cmds[int(choice)]
+        else:
+            print("No command executed.")
+            sys.exit(1)
+
+    # retrieve the shell
+    shell = os.environ.get("SHELL")
+    # if no shell is set, use bash
+    if shell is None:
+        shell = "/bin/bash"
+
+    if not os.environ.get("NOHISTORY"):
+        # retrieve the history file of the shell depending on the shell
+        if shell == "/bin/bash":
+            history_file = os.path.expanduser("~/.bash_history")
+        elif shell == "/bin/zsh":
+            history_file = os.path.expanduser("~/.zhistory")
+            # subprocess.call("fc -R", shell=True, executable=shell)
+        elif shell == "/bin/fish":
+            history_file = os.path.expanduser("~/.local/share/fish/fish_history")
+        else:
+            history_file = None
+            #log.warning("Shell %s not supported. History will not be saved." % shell)
         
+        # save the command to the history
+        if history_file is not None:
+            with open(history_file, "a") as f:
+                f.write(cmd + "\n")        
+            print("History saved.")
+
+    # Execute the command in the current shell (bash, zsh, fish, etc.)
+    subprocess.call(cmd, shell=True, executable=shell)
+
+
+
+
 
