@@ -12,7 +12,8 @@ import argparse
 import re
 from collections import OrderedDict
 
-
+VERSION = "0.2.0"
+CACHE_FOLDER = "~/.cache/bashai"
 
 def cache(maxsize=128):
     def decorator(func):
@@ -23,17 +24,18 @@ def cache(maxsize=128):
             key = str(args) + str(kwargs)
 
             # create the cache directory if it doesn't exist
-            if not os.path.exists(os.path.expanduser("~/.cache/bashai")):
-                os.mkdir(os.path.expanduser("~/.cache/bashai"))
+            if not os.path.exists(os.path.expanduser(CACHE_FOLDER)):
+                os.mkdir(os.path.expanduser(CACHE_FOLDER))
 
             # load the cache
             try:
-                with open(os.path.expanduser("~/.cache/bashai/cache.pkl"), "rb") as f:
+                cache_folder = os.path.expanduser(CACHE_FOLDER)
+                with open(os.path.join(cache_folder, "cache.pkl"), "rb") as f:
                     cache = pickle.load(f)
             except (FileNotFoundError, EOFError):
                 cache = OrderedDict()
 
-            if type(cache) != OrderedDict:
+            if not isinstance(cache, OrderedDict):
                 cache = OrderedDict()
 
             if key in cache:
@@ -45,7 +47,8 @@ def cache(maxsize=128):
                     cache.popitem(last=False)
 
                 cache[key] = result
-                with open(os.path.expanduser("~/.cache/bashai/cache.pkl"), "wb") as f:
+                cache_folder = os.path.expanduser(CACHE_FOLDER)
+                with open(os.path.join(cache_folder, "cache.pkl"), "wb") as f:
                     pickle.dump(cache, f)
                 return result
         return wrapper
@@ -79,6 +82,58 @@ def get_context_files(context_files=[]):
         context_prompt += "\n".join(context_files)
     return context_prompt
 
+def load_history():
+    # create the cache directory if it doesn't exist
+    if not os.path.exists(os.path.expanduser(CACHE_FOLDER)):
+        os.mkdir(os.path.expanduser(CACHE_FOLDER))
+
+    # load the history from .chat_history
+    cache_folder = os.path.expanduser(CACHE_FOLDER)
+    path = os.path.join(cache_folder, "chat_history")
+    if os.path.exists(path):
+        with open(path, "rb") as f:
+            history = pickle.load(f)
+    else:
+        history = []
+    return history
+
+
+def save_history(history, limit=50):
+    # create the cache directory if it doesn't exist
+    if not os.path.exists(os.path.expanduser(CACHE_FOLDER)):
+        os.mkdir(os.path.expanduser(CACHE_FOLDER))
+
+    # save the history to chat_history
+    cache_folder = os.path.expanduser(CACHE_FOLDER)
+    with open(os.path.join(cache_folder, "chat_history"), "wb") as f:
+        history = history[-limit:]
+        pickle.dump(history, f)
+
+def clean_history():
+    # create the cache directory if it doesn't exist
+    if not os.path.exists(os.path.expanduser(CACHE_FOLDER)):
+        os.mkdir(os.path.expanduser(CACHE_FOLDER))
+
+    cache_folder = os.path.expanduser(CACHE_FOLDER)
+    path = os.path.join(cache_folder, "chat_history")
+    if os.path.exists(path):
+        os.unlink(path)
+    
+
+def chat(prompt):
+    history = load_history()
+    if len(history) == 0 or len([h for h in history if h["role"] == "system"]) == 0:
+        distribution = distro.name()
+        history.append({"role": "system", "content": "You are a helpful assistant. Answer as concisely as possible. This machine is running Linux %s." % distribution})
+
+    history.append({"role": "user", "content": prompt})
+    response = openai.ChatCompletion.create(model="gpt-3.5-turbo", messages=history)
+    content = response.get("choices")[0].message.content
+    # trim the content
+    content = content.strip()
+    history.append({"role": "assistant", "content": content})
+    save_history(history)
+    return content
 
 @cache()
 def get_cmd(prompt, context_files=[]):
@@ -188,6 +243,8 @@ if __name__ == "__main__":
     parser.add_argument('-c', action='store_true', help='include folder content as context to the request.')
     parser.add_argument('-e', action='store_true', help='explain the generated command.')
     parser.add_argument('-n', action='store', type=int, default=5, help='number of commands to generate.')
+    parser.add_argument('--chat', action='store_true', help='Chat mode.')
+    parser.add_argument('--new', action='store_true', help='Clean the chat history.')
     parser.add_argument('text', nargs='+', help='your query to the ai')
 
     args = parser.parse_args()
@@ -196,6 +253,7 @@ if __name__ == "__main__":
     if context:
         context_files = os.listdir(os.getcwd())
 
+    # get the prompt
     prompt = " ".join(args.text)
 
     # setup control-c handler
@@ -204,8 +262,17 @@ if __name__ == "__main__":
     # get the api key
     get_api_key()
 
-    # # get the prompt
-    # prompt = " ".join(sys.argv[1:])
+
+    if args.chat:
+        if args.new:
+            print("Cleaning the chat history.")
+            clean_history()
+        while True:
+            cmd = chat(prompt)
+            print("AI: %s" % cmd)
+            prompt = input("You: ")
+        sys.exit(0)
+
 
     # get the command from the ai
     cmd = get_cmd(prompt, context_files=context_files)

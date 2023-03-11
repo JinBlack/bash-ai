@@ -13,7 +13,7 @@ function check_python() {
         exit 1
     fi
 
-    # check python version is 3.6 or higher
+    # check python version is 3.7.1 or higher
     PYTHON_VERSION=$(python3 -V 2>&1 | awk '{print $2}')
     MIN_VERSION="3.7.1"
     if [[ "$(printf '%s\n' "$PYTHON_VERSION" "$MIN_VERSION" | sort -V | head -n1)" != "$MIN_VERSION" ]]; then
@@ -22,18 +22,24 @@ function check_python() {
     fi
 }
 
-function check_pip() {
-    # Check if pip exists
-    if [ ! -f "/usr/bin/pip" ]; then
-     # check if debian based
-        if [ ! -f "/etc/debian_version" ]; then
-            echo "You need to install pip"
-            exit 1
-        else
-            echo "Installing pip..."
-            sudo apt-get install python3-pip
-        fi
+function check_pip_packages_version() {
+    # Check if pip packages are up to date once a day using bash command touch
+    if [ ! -f "$ENV_PATH/.last_update" ]; then
+        touch $ENV_PATH/.last_update
     fi
+
+    # Check if last update was more than 24 hours ago
+    LAST_UPDATE=$(date -r $ENV_PATH/.last_update +%s)
+    NOW=$(date +%s)
+    DIFF=$(( $NOW - $LAST_UPDATE ))
+    if [ $DIFF -gt 86400 ]; then
+        echo "Updating pip packages..."
+        pip3 install -q --upgrade pip
+        pip3 install -q --upgrade -r $REQ_PATH
+        touch $ENV_PATH/.last_update
+        echo "Pip packages updated!"
+    fi
+    
 }
 
 
@@ -47,5 +53,7 @@ if [ ! -d "$ENV_PATH" ]; then
 else
     source $ENV_PATH/bin/activate
 fi
+
+check_pip_packages_version
 
 python $COMMAND_PATH $@
