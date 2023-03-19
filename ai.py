@@ -11,6 +11,7 @@ import subprocess
 import argparse
 import re
 from collections import OrderedDict
+from sys import platform
 
 VERSION = "0.2.0"
 CACHE_FOLDER = "~/.cache/bashai"
@@ -122,9 +123,12 @@ def clean_history():
 
 def chat(prompt):
     history = load_history()
+    os = "Linux"
+    if platform == "darwin":
+        os = "MacOS"
     if len(history) == 0 or len([h for h in history if h["role"] == "system"]) == 0:
         distribution = distro.name()
-        history.append({"role": "system", "content": "You are a helpful assistant. Answer as concisely as possible. This machine is running Linux %s." % distribution})
+        history.append({"role": "system", "content": "You are a helpful assistant. Answer as concisely as possible. This machine is running %s %s." % os % distribution})
 
     history.append({"role": "user", "content": prompt})
     response = openai.ChatCompletion.create(model="gpt-3.5-turbo", messages=history)
