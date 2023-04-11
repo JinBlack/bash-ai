@@ -72,8 +72,8 @@ def get_api_key():
         with open(os.path.expanduser("~/.config/openai"), "w") as f:
             f.write(openai.api_key)
 
-@cache()
-def get_context_files(context_files=[]):
+def get_context_files():
+    context_files = os.listdir(os.getcwd())
     context_prompt = ""
     # add the current folder to the prompt
     if len(context_files) > 0:
@@ -81,6 +81,60 @@ def get_context_files(context_files=[]):
         # add the files to the prompt
         context_prompt += "\n".join(context_files)
     return context_prompt
+
+def get_context_process_list():
+    context_prompt = ""
+    # list all processes
+    process_list = subprocess.check_output(["ps", "-A", "-o", "pid,ppid,cmd"]).decode("utf-8")
+    context_prompt += "The following processes are running: %s\n" % process_list
+    return context_prompt
+
+def get_context_env():
+    context_prompt = ""
+    # list all environment variables
+    env = os.environ
+    context_prompt += "The following environment variables are set: %s\n" % env
+    return context_prompt
+
+def get_context_users():
+    context_prompt = ""
+    # list all users
+    users = subprocess.check_output(["getent", "passwd"]).decode("utf-8")
+    context_prompt += "The following users are defined: %s\n" % users
+    return context_prompt
+
+def get_context_groups():
+    context_prompt = ""
+    # list all groups
+    groups = subprocess.check_output(["getent", "group"]).decode("utf-8")
+    context_prompt += "The following groups are defined: %s\n" % groups
+    return context_prompt
+
+def get_context_network_interfaces():
+    context_prompt = ""
+    # list all network interfaces
+    interfaces = subprocess.check_output(["ip", "link"]).decode("utf-8")
+    context_prompt += "The following network interfaces are defined: %s\n" % interfaces
+    return context_prompt
+
+def get_context_network_routes():
+    context_prompt = ""
+    # list all network interfaces
+    routes = subprocess.check_output(["ip", "route"]).decode("utf-8")
+    context_prompt += "The following network routes are defined: %s\n" % routes
+    return context_prompt
+
+
+CONTEXT = [
+    {"name": "List of files in the current directory", "function": get_context_files},
+    {"name": "List of processes", "function": get_context_process_list},
+    # {"name": "List of environment variables", "function": get_context_env}, # This looks like a security issue
+    {"name": "List of users", "function": get_context_users},
+    {"name": "List of groups", "function": get_context_groups},
+    {"name": "List of network interfaces", "function": get_context_network_interfaces},
+    {"name": "List of network routes", "function": get_context_network_routes},
+]
+
 
 def load_history():
     # create the cache directory if it doesn't exist
@@ -122,6 +176,13 @@ def clean_history():
 
 def chat(prompt):
     history = load_history()
+    # esitmate the length of the history in words
+    while sum([len(h["content"].split()) for h in history]) > 2000:
+        # skip the first message that should be the system message
+        history = history[1:]
+
+    print("History length: %s" % sum([len(h["content"].split()) for h in history]))
+
     if len(history) == 0 or len([h for h in history if h["role"] == "system"]) == 0:
         distribution = distro.name()
         history.append({"role": "system", "content": "You are a helpful assistant. Answer as concisely as possible. This machine is running Linux %s." % distribution})
@@ -136,11 +197,9 @@ def chat(prompt):
     return content
 
 @cache()
-def get_cmd(prompt, context_files=[]):
+def get_cmd(prompt, context_prompt=""):
     # add info about the system to the prompt. E.g. ubuntu, arch, etc.
     distribution = distro.like()
-    context_prompt = get_context_files(context_files)            
-
 
     response = openai.Completion.create(
         engine="text-davinci-003",
@@ -174,6 +233,29 @@ def get_cmd_list(prompt, context_files=[], n=5):
     # trim the cmd
     cmd_list = list(set([x.strip() for x in cmd_list]))
     return cmd_list
+
+
+@cache()
+def get_needed_context(cmd):
+    context_list = ""
+    for i in range(len(CONTEXT)):
+        context_list += "%s ) %s" % (i, CONTEXT[i]["name"])
+
+    response = openai.Completion.create(
+        engine="text-davinci-003",
+        prompt="If you need to generate a signle bash command to %s, which of this context you need:\n %s\n Your output is a number." % (cmd, context_list),
+        temperature=0,
+        max_tokens=4,
+        top_p=1,
+    )
+    choice = response.get("choices")[0].get("text", "No explanation found.").strip()
+    try:
+        choice = int(choice.strip())
+    except:
+        #print the wrong chice in red
+        print("Wrong context: \033[1;31m%s\033[0m" % choice)
+        choice = -1
+    return choice
 
 
 @cache()
@@ -248,13 +330,21 @@ if __name__ == "__main__":
     parser.add_argument('text', nargs='+', help='your query to the ai')
 
     args = parser.parse_args()
-    context = args.c
-    context_files = []
-    if context:
-        context_files = os.listdir(os.getcwd())
 
     # get the prompt
     prompt = " ".join(args.text)
+
+
+    context = args.c
+    context_files = []
+    context_prompt = ""
+    if context:
+        needed_contxt = get_needed_context(prompt)
+        if needed_contxt >= 0:
+            print("AI choose to %s as context." % CONTEXT[needed_contxt]["name"])
+            context_prompt += CONTEXT[needed_contxt]["function"]()
+        if len(context_prompt) > 3000:
+            context_prompt = context_prompt[:3000]
 
     # setup control-c handler
     signal.signal(signal.SIGINT, signal_handler)
@@ -275,7 +365,7 @@ if __name__ == "__main__":
 
 
     # get the command from the ai
-    cmd = get_cmd(prompt, context_files=context_files)
+    cmd = get_cmd(prompt, context_prompt=context_prompt)
 
 
     if args.e:

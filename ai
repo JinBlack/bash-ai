@@ -28,11 +28,11 @@ function check_pip_packages_version() {
         touch $ENV_PATH/.last_update
     fi
 
-    # Check if last update was more than 24 hours ago
+    # Check if last update was more than a week ago
     LAST_UPDATE=$(date -r $ENV_PATH/.last_update +%s)
     NOW=$(date +%s)
     DIFF=$(( $NOW - $LAST_UPDATE ))
-    if [ $DIFF -gt 86400 ]; then
+    if [ $DIFF -gt 604800 ]; then
         echo "Updating pip packages..."
         pip3 install -q --upgrade pip
         pip3 install -q --upgrade -r $REQ_PATH
