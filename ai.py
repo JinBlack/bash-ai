@@ -350,6 +350,13 @@ if __name__ == "__main__":
     prompt = " ".join(args.text)
 
 
+    # setup control-c handler
+    signal.signal(signal.SIGINT, signal_handler)
+
+    # get the api key
+    get_api_key()
+
+
     context = args.c or args.C >= 0
     context_files = []
     context_prompt = ""
@@ -362,13 +369,6 @@ if __name__ == "__main__":
             context_prompt += CONTEXT[needed_contxt]["function"]()
         if len(context_prompt) > 3000:
             context_prompt = context_prompt[:3000]
-
-    # setup control-c handler
-    signal.signal(signal.SIGINT, signal_handler)
-
-    # get the api key
-    get_api_key()
-
 
     if args.chat:
         if args.new:
