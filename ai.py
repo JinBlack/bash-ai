@@ -12,7 +12,7 @@ import argparse
 import re
 from collections import OrderedDict
 
-VERSION = "0.2.0"
+VERSION = "0.3.0"
 CACHE_FOLDER = "~/.cache/bashai"
 
 def cache(maxsize=128):
@@ -124,6 +124,13 @@ def get_context_network_routes():
     context_prompt += "The following network routes are defined: %s\n" % routes
     return context_prompt
 
+def get_context_iptables():
+    context_prompt = ""
+    # list all iptables rules
+    iptables = subprocess.check_output(["sudo", "iptables", "-L"]).decode("utf-8")
+    context_prompt += "The following iptables rules are defined: %s\n" % iptables
+    return context_prompt
+
 
 CONTEXT = [
     {"name": "List of files in the current directory", "function": get_context_files},
@@ -133,6 +140,7 @@ CONTEXT = [
     {"name": "List of groups", "function": get_context_groups},
     {"name": "List of network interfaces", "function": get_context_network_interfaces},
     {"name": "List of network routes", "function": get_context_network_routes},
+    {"name": "List of iptables rules", "function": get_context_iptables},
 ]
 
 
@@ -243,7 +251,7 @@ def get_needed_context(cmd):
 
     response = openai.Completion.create(
         engine="text-davinci-003",
-        prompt="If you need to generate a signle bash command to %s, which of this context you need:\n %s\n Your output is a number." % (cmd, context_list),
+        prompt="If you need to generate a signle bash command to %s, which of this context you need:\n %s\n Your output is a number.\n If none of the above context is usefull the output is -1.\n" % (cmd, context_list),
         temperature=0,
         max_tokens=4,
         top_p=1,
@@ -308,6 +316,12 @@ def print_explaination(cmd):
     print("")
 
 
+def generate_context_help():
+    c_string = ""
+    for i in range(len(CONTEXT)):
+        c_string += "\t%s) %s\n" % (i, CONTEXT[i]["name"])
+    return c_string
+
 
 # Control-C to exit
 def signal_handler(sig, frame):
@@ -322,7 +336,8 @@ if __name__ == "__main__":
         sys.exit(1)
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('-c', action='store_true', help='include folder content as context to the request.')
+    parser.add_argument('-c', action='store_true', help='auto select context to be included.')
+    parser.add_argument('-C', action='store', type=int, default=-1, choices=range(0, len(CONTEXT)), help='specify which context to include: %s' % generate_context_help())
     parser.add_argument('-e', action='store_true', help='explain the generated command.')
     parser.add_argument('-n', action='store', type=int, default=5, help='number of commands to generate.')
     parser.add_argument('--chat', action='store_true', help='Chat mode.')
@@ -335,11 +350,13 @@ if __name__ == "__main__":
     prompt = " ".join(args.text)
 
 
-    context = args.c
+    context = args.c or args.C >= 0
     context_files = []
     context_prompt = ""
     if context:
-        needed_contxt = get_needed_context(prompt)
+        needed_contxt = args.C
+        if needed_contxt < 0:
+            needed_contxt = get_needed_context(prompt)
         if needed_contxt >= 0:
             print("AI choose to %s as context." % CONTEXT[needed_contxt]["name"])
             context_prompt += CONTEXT[needed_contxt]["function"]()
