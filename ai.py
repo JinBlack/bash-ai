@@ -213,7 +213,7 @@ def get_cmd(prompt, context_prompt=""):
         engine="text-davinci-003",
         prompt="Running on Linux like %s. %s\nSingle bash command to %s\n" % (distribution, context_prompt, prompt),
         temperature=0,
-        max_tokens=50,
+        max_tokens=100,
         top_p=1,
     )
     cmd = response.get("choices")[0].get("text", "echo 'No command found.'")
@@ -247,11 +247,13 @@ def get_cmd_list(prompt, context_files=[], n=5):
 def get_needed_context(cmd):
     context_list = ""
     for i in range(len(CONTEXT)):
-        context_list += "%s ) %s" % (i, CONTEXT[i]["name"])
+        context_list += "%s ) %s\n" % (i, CONTEXT[i]["name"])
+
+    prompt = "If you need to generate a signle bash command to %s, which of this context you need:\n%s\n Your output is a number.\n If none of the above context is usefull the output is -1.\n" % (cmd, context_list)
 
     response = openai.Completion.create(
         engine="text-davinci-003",
-        prompt="If you need to generate a signle bash command to %s, which of this context you need:\n %s\n Your output is a number.\n If none of the above context is usefull the output is -1.\n" % (cmd, context_list),
+        prompt=prompt,
         temperature=0,
         max_tokens=4,
         top_p=1,
@@ -263,6 +265,7 @@ def get_needed_context(cmd):
         #print the wrong chice in red
         print("Wrong context: \033[1;31m%s\033[0m" % choice)
         choice = -1
+
     return choice
 
 
