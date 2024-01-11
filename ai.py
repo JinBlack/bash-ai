@@ -230,7 +230,7 @@ def get_cmd_list(prompt, context_files=[], n=5):
 
 
     response = openai.Completion.create(
-        engine="text-davinci-003",
+        engine="gpt-3.5-turbo-instruct",
         prompt="Running on Linux like %s. %s\n Generate a single bash command to %s\n" % (distribution, context_prompt, prompt),
         temperature=0.9,
         max_tokens=50,
@@ -252,7 +252,7 @@ def get_needed_context(cmd):
     prompt = "If you need to generate a signle bash command to %s, which of this context you need:\n%s\n Your output is a number.\n If none of the above context is usefull the output is -1.\n" % (cmd, context_list)
 
     response = openai.Completion.create(
-        engine="text-davinci-003",
+        engine="gpt-3.5-turbo-instruct",
         prompt=prompt,
         temperature=0,
         max_tokens=4,
@@ -272,7 +272,7 @@ def get_needed_context(cmd):
 @cache()
 def get_explaination(cmd):
     response = openai.Completion.create(
-        engine="text-davinci-003",
+        engine="gpt-3.5-turbo-instruct",
         prompt="Explain what is the purpose of command with details for each option: %s \n" % cmd,
         temperature=0,
         max_tokens=250,
