@@ -210,7 +210,7 @@ def get_cmd(prompt, context_prompt=""):
     distribution = distro.like()
 
     response = openai.Completion.create(
-        engine="text-davinci-003",
+        engine="gpt-3.5-turbo-instruct",
         prompt="Running on Linux like %s. %s\nSingle bash command to %s\n" % (distribution, context_prompt, prompt),
         temperature=0,
         max_tokens=100,
