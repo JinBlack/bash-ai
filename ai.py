@@ -13,7 +13,7 @@ import re
 from collections import OrderedDict
 import logging
 log = logging.getLogger(__name__)
-log.setLevel(logging.DEBUG)
+log.setLevel(logging.ERROR)
 # logging goes into stderr
 logging.basicConfig(level=logging.DEBUG, format="[%(name)s]\t%(asctime)s - %(levelname)s \t %(message)s")
 
