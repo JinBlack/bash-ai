@@ -15,7 +15,7 @@ import logging
 log = logging.getLogger(__name__)
 log.setLevel(logging.ERROR)
 # logging goes into stderr
-logging.basicConfig(level=logging.DEBUG, format="[%(name)s]\t%(asctime)s - %(levelname)s \t %(message)s")
+logging.basicConfig(level=logging.ERROR, format="[%(name)s]\t%(asctime)s - %(levelname)s \t %(message)s")
 
 
 VERSION = "0.3.0"
