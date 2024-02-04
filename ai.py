@@ -211,7 +211,7 @@ def get_cmd(prompt, context_prompt=""):
 
     response = openai.Completion.create(
         engine="gpt-3.5-turbo-instruct",
-        prompt="Running on Linux like %s. %s\nSingle bash command to %s\n" % (distribution, context_prompt, prompt),
+        prompt="You can output only linux commands! No info! No comments. This system is running on Linux like %s. %s\n Generate a single bash command to %s\n" % (distribution, context_prompt, prompt),
         temperature=0,
         max_tokens=100,
         top_p=1,
