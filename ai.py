@@ -11,6 +11,12 @@ import subprocess
 import argparse
 import re
 from collections import OrderedDict
+import logging
+log = logging.getLogger(__name__)
+log.setLevel(logging.ERROR)
+# logging goes into stderr
+logging.basicConfig(level=logging.DEBUG, format="[%(name)s]\t%(asctime)s - %(levelname)s \t %(message)s")
+
 
 VERSION = "0.3.0"
 CACHE_FOLDER = "~/.cache/bashai"
@@ -208,6 +214,9 @@ def chat(prompt):
 def get_cmd(prompt, context_prompt=""):
     # add info about the system to the prompt. E.g. ubuntu, arch, etc.
     distribution = distro.like()
+    if distribution is None or distribution == "":
+        distribution = distro.name()
+    log.debug("Distribution: %s" % distribution)
 
     response = openai.Completion.create(
         engine="gpt-3.5-turbo-instruct",
@@ -226,8 +235,10 @@ def get_cmd(prompt, context_prompt=""):
 def get_cmd_list(prompt, context_files=[], n=5):
     # add info about the system to the prompt. E.g. ubuntu, arch, etc.
     distribution = distro.like()
-    context_prompt = get_context_files(context_files)                        
-
+    if distribution is None or distribution == "":
+        distribution = distro.name()
+    log.debug("Distribution: %s" % distribution)
+    context_prompt = get_context_files(context_files)    
 
     response = openai.Completion.create(
         engine="gpt-3.5-turbo-instruct",
