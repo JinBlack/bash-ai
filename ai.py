@@ -302,7 +302,7 @@ def highlight(cmd, explanation):
         #escape the special characters
         x_strip = re.escape(x_strip)
 
-        explanation = re.sub("([\s'\"`\.,;:])%s([\s'\"`\.,;:])" % x_strip, "\\1%s\\2" % x_replace, explanation)
+        explanation = re.sub(r"([\s'\"`\.,;:])%s([\s'\"`\.,;:])" % x_strip, "\\1%s\\2" % x_replace, explanation)
     return explanation
 
 
