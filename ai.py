@@ -10,6 +10,7 @@ import signal
 import subprocess
 import argparse
 import re
+import platform
 from collections import OrderedDict
 import logging
 log = logging.getLogger(__name__)
@@ -19,7 +20,12 @@ logging.basicConfig(level=logging.ERROR, format="[%(name)s]\t%(asctime)s - %(lev
 
 
 VERSION = "0.3.0"
-CACHE_FOLDER = "~/.cache/bashai"
+PLATFORM = platform.system()
+if PLATFORM == "Linux":
+    CACHE_FOLDER = "~/.cache/bashai"
+elif PLATFORM == "Darwin":
+    PLATFORM = "MacOSX"
+    CACHE_FOLDER = "~/Library/Caches/bashai"
 
 def cache(maxsize=128):
     def decorator(func):
@@ -199,7 +205,7 @@ def chat(prompt):
 
     if len(history) == 0 or len([h for h in history if h["role"] == "system"]) == 0:
         distribution = distro.name()
-        history.append({"role": "system", "content": "You are a helpful assistant. Answer as concisely as possible. This machine is running Linux %s." % distribution})
+        history.append({"role": "system", "content": "You are a helpful assistant. Answer as concisely as possible. This machine is running %s %s." % (PLATFORM, distribution)})
 
     history.append({"role": "user", "content": prompt})
     response = openai.ChatCompletion.create(model="gpt-3.5-turbo", messages=history)
@@ -220,7 +226,7 @@ def get_cmd(prompt, context_prompt=""):
 
     response = openai.Completion.create(
         engine="gpt-3.5-turbo-instruct",
-        prompt="You can output only linux commands! No info! No comments. This system is running on Linux like %s. %s\n Generate a single bash command to %s\n" % (distribution, context_prompt, prompt),
+        prompt="You can output only terminal commands! No info! No comments. This system is running on %s like %s. %s\n Generate a single bash command to %s\n" % (PLATFORM, distribution, context_prompt, prompt),
         temperature=0,
         max_tokens=100,
         top_p=1,
@@ -238,11 +244,11 @@ def get_cmd_list(prompt, context_files=[], n=5):
     if distribution is None or distribution == "":
         distribution = distro.name()
     log.debug("Distribution: %s" % distribution)
-    context_prompt = get_context_files(context_files)    
+    context_prompt = get_context_files()    
 
     response = openai.Completion.create(
         engine="gpt-3.5-turbo-instruct",
-        prompt="Running on Linux like %s. %s\n Generate a single bash command to %s\n" % (distribution, context_prompt, prompt),
+        prompt="Running on %s like %s. %s\n Generate a single bash command to %s\n" % (PLATFORM, distribution, context_prompt, prompt),
         temperature=0.9,
         max_tokens=50,
         top_p=1,
