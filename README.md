@@ -1,7 +1,5 @@
 # Bash AI
 
-# Bash AI
-
 This is a simple bash script that uses the OpenAI API to generate commands based on the user input. It is forked from [JinBlack/bash-ai](https://github.com/JinBlack/bash-ai).
 
 ## Fork Changes
