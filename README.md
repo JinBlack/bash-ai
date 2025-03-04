@@ -1,5 +1,14 @@
 # Bash AI
 
+# Bash AI
+
+This is a simple bash script that uses the OpenAI API to generate commands based on the user input. It is forked from [JinBlack/bash-ai](https://github.com/JinBlack/bash-ai).
+
+## Fork Changes
+- Fixed zsh history not working
+- Updated to latest OpenAI API
+- Now using GPT-4o-mini for extra cost efficiency
+
 ## Install
     git clone https://github.com/JinBlack/bash-ai
     cd bash-ai
