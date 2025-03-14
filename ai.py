@@ -290,7 +290,7 @@ def get_cmd_list(client, prompt, context_files=[], n=5):
     response = client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[
-            {"role": "system", "content": "Running on %s like %s. %s" % (PLATFORM, distribution, context_prompt)},
+            {"role": "system", "content": "You can output only terminal commands! No info! No comments. No backticks. Running on %s like %s. %s" % (PLATFORM, distribution, context_prompt)},
             {"role": "user", "content": "Generate a single bash command to %s" % prompt},
         ],
         max_tokens=50,
@@ -299,7 +299,7 @@ def get_cmd_list(client, prompt, context_files=[], n=5):
         n=n,
     )
     cmd_list = [
-        x.message.content for x in response.choices
+        x.message.content.replace("```bash\n", "").replace("\n```", "") for x in response.choices
     ]
     # trim the cmd
     cmd_list = list(set([x.strip() for x in cmd_list]))
@@ -494,7 +494,7 @@ if __name__ == "__main__":
         for cmd in cmds:
             print("%d. \033[1;32m%s\033[0m" % (index, cmd))
             if args.e:
-                print_explaination(cmd)
+                print_explaination(client, cmd)
                 print("\n")
 
             index += 1
@@ -521,18 +521,15 @@ if __name__ == "__main__":
 
             new_history_line = f"{cmd}\n"
         elif "/bin/zsh" in shell:
-            history_file = os.path.expanduser("~/.zsh_history")
+            history_file = os.environ.get("HISTFILE", os.path.expanduser("~/.zsh_history")) 
             
             # Get UNIX timestamp
             timestamp = int(time.time())
 
             new_history_line = f": {int(timestamp)}:0;{cmd}\n"
-
-            # TODO: Still has to be refreshed manually with `fc -R` :(
         elif "/bin/fish" in shell:
+            # Untested
             history_file = os.path.expanduser("~/.local/share/fish/fish_history")
-
-            raise NotImplementedError("No time to test this sadly.")
         else:
             history_file = None
             # log.warning("Shell %s not supported. History will not be saved." % shell)
