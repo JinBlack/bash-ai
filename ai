@@ -1,5 +1,6 @@
 #!/bin/bash
 
+VERSION="0.1.0"
 ENV_NAME=bashai
 ENV_PATH=~/.virtualenvs/$ENV_NAME
 COMMAND_PATH=$(cd $(dirname $0); pwd)/ai.py
@@ -32,12 +33,18 @@ function check_pip_packages_version() {
     LAST_UPDATE=$(date -r $ENV_PATH/.last_update +%s)
     NOW=$(date +%s)
     DIFF=$(( $NOW - $LAST_UPDATE ))
-    if [ $DIFF -gt 604800 ]; then
+
+    # Check version saved in last_update file
+    # Read the version from the file
+    LAST_VERSION=$(cat $ENV_PATH/.last_update)
+
+    if [ $DIFF -gt 604800 ] || [ "$LAST_VERSION" != "$VERSION" ]; then
         echo "Updating pip packages..."
         pip3 install -q --upgrade pip
         pip3 install -q --upgrade -r $REQ_PATH
         touch $ENV_PATH/.last_update
         echo "Pip packages updated!"
+        echo $VERSION > $ENV_PATH/.last_update
     fi
     
 }
