@@ -18,7 +18,7 @@ e.g., in zsh, you need to run `fc -R` to update the history file.
 
 First time you run ai, it will install dependencies in a virtual environment and it will ask for the key to the api. 
 
-You can get the key from [here](https://beta.openai.com/account/api-keys)
+You can get the key from [here](https://platform.openai.com/api-keys)
 
 
 ## Usage
