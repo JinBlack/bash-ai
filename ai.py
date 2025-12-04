@@ -97,6 +97,15 @@ def get_api_key():
 
         return api_key
 
+def get_base_url():
+    url = os.getenv("BASHAI_API", None)
+    log.debug(f"Using API: {url}")
+    return url
+
+def get_model():
+    model = os.getenv("BASHAI_MODEL", "gpt-4o-mini")
+    log.debug(f"Using model: {model}")
+    return model
 
 def get_context_files():
     context_files = os.listdir(os.getcwd())
@@ -221,7 +230,7 @@ def clean_history():
         os.unlink(path)
 
 
-def chat(client, prompt):
+def chat(client, prompt, model):
     history = load_history()
     # esitmate the length of the history in words
     while sum([len(h["content"].split()) for h in history]) > 2000:
@@ -241,7 +250,7 @@ def chat(client, prompt):
         )
 
     history.append({"role": "user", "content": prompt})
-    response = client.chat.completions.create(model="gpt-4o-mini", messages=history)
+    response = client.chat.completions.create(model=model, messages=history)
     content = response.choices[0].message.content
     # trim the content
     content = content.strip()
@@ -251,7 +260,7 @@ def chat(client, prompt):
 
 
 @cache()
-def get_cmd(client, prompt, context_prompt=""):
+def get_cmd(client, prompt, model, context_prompt=""):
     # add info about the system to the prompt. E.g. ubuntu, arch, etc.
     distribution = distro.like()
     if distribution is None or distribution == "":
@@ -259,7 +268,7 @@ def get_cmd(client, prompt, context_prompt=""):
     log.debug("Distribution: %s" % distribution)
 
     response = client.chat.completions.create(
-        model="gpt-4o-mini",
+        model=model,
         messages=[
             {"role": "system", "content": "You can output only terminal commands! No info! No comments. No backticks. This system is running on %s like %s." % (PLATFORM, distribution)},
             {"role": "user", "content": "Generate a single bash command to %s\n%s" % (prompt, context_prompt)},
@@ -279,7 +288,7 @@ def get_cmd(client, prompt, context_prompt=""):
 
 
 @cache()
-def get_cmd_list(client, prompt, context_files=[], n=5):
+def get_cmd_list(client, prompt, model, context_files=[], n=5):
     # add info about the system to the prompt. E.g. ubuntu, arch, etc.
     distribution = distro.like()
     if distribution is None or distribution == "":
@@ -288,7 +297,7 @@ def get_cmd_list(client, prompt, context_files=[], n=5):
     context_prompt = get_context_files()
 
     response = client.chat.completions.create(
-        model="gpt-4o-mini",
+        model=model,
         messages=[
             {"role": "system", "content": "You can output only terminal commands! No info! No comments. No backticks. Running on %s like %s. %s" % (PLATFORM, distribution, context_prompt)},
             {"role": "user", "content": "Generate a single bash command to %s" % prompt},
@@ -307,7 +316,7 @@ def get_cmd_list(client, prompt, context_files=[], n=5):
 
 
 @cache()
-def get_needed_context(cmd, client):
+def get_needed_context(cmd, client, model):
     context_list = ""
     for i in range(len(CONTEXT)):
         context_list += "%s ) %s\n" % (i, CONTEXT[i]["name"])
@@ -318,7 +327,7 @@ def get_needed_context(cmd, client):
     )
 
     response = client.chat.completions.create(
-        model="gpt-4o-mini",
+        model=model,
         messages=[
             {"role": "system", "content": "You can output only a number."},
             {"role": "user", "content": prompt},
@@ -339,9 +348,9 @@ def get_needed_context(cmd, client):
 
 
 @cache()
-def get_explaination(client, cmd):
+def get_explaination(client, cmd, model):
     response = client.chat.completions.create(
-        model="gpt-4o-mini",
+        model=model,
         messages=[
             {"role": "system", "content": "Explain what is the purpose of command with details for each option."},
             {"role": "user", "content": cmd},
@@ -386,8 +395,8 @@ def square_text(text):
     return out
 
 
-def print_explaination(client, cmd):
-    explaination = get_explaination(client, cmd)
+def print_explaination(client, cmd, model):
+    explaination = get_explaination(client, cmd, model)
     h_explaination = highlight(cmd, square_text(explaination.strip()))
     print("-" * 27)
     print("| *** \033[1;31m Explaination: \033[0m *** |")
@@ -450,8 +459,11 @@ if __name__ == "__main__":
 
     # get the api key
     api_key = get_api_key()
-
-    client = openai.OpenAI(api_key=api_key)
+    base_url = get_base_url()
+    model = get_model()
+    log.info("Using model: %s" % model)
+    log.info("Using base url: %s" % base_url)
+    client = openai.OpenAI(api_key=api_key, base_url=base_url)
 
     context = args.c or args.C >= 0
     context_files = []
@@ -459,7 +471,7 @@ if __name__ == "__main__":
     if context:
         needed_contxt = args.C
         if needed_contxt < 0:
-            needed_contxt = get_needed_context(prompt, client)
+            needed_contxt = get_needed_context(prompt, client, model)
         if needed_contxt >= 0:
             print("AI choose to %s as context." % CONTEXT[needed_contxt]["name"])
             context_prompt += CONTEXT[needed_contxt]["function"]()
@@ -477,7 +489,7 @@ if __name__ == "__main__":
         sys.exit(0)
 
     # get the command from the ai
-    cmd = get_cmd(client, prompt, context_prompt=context_prompt)
+    cmd = get_cmd(client, prompt, model, context_prompt=context_prompt)
 
     if args.e:
         print_explaination(client, cmd)
@@ -488,7 +500,7 @@ if __name__ == "__main__":
     # validate the command
     if input("Do you want to execute this command? [Y/n] ").lower() == "n":
         # execute the command with Popen and save it to the history
-        cmds = get_cmd_list(client, prompt, context_files=context_files, n=args.n)
+        cmds = get_cmd_list(client, prompt, model, context_files=context_files, n=args.n)
         print("Here are some other commands you might want to execute:")
         index = 0
         for cmd in cmds:
